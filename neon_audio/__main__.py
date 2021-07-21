@@ -18,15 +18,13 @@
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from mycroft_bus_client import MessageBusClient
-from neon_utils.logger import LOG
-
+import neon_audio
 from neon_audio import speech
-from neon_audio.audioservice import AudioService
-
+from mycroft_bus_client import MessageBusClient
+from mycroft.audio.audioservice import AudioService
 from mycroft.util import reset_sigint_handler, wait_for_exit_signal, \
     create_daemon, create_echo_function, check_for_signal
+from mycroft.util.log import LOG
 
 
 def main(config: dict = None):
@@ -42,11 +40,7 @@ def main(config: dict = None):
 
     LOG.info("Starting Audio Services")
     bus.on('message', create_echo_function('AUDIO', ['mycroft.audio.service']))
-    from neon_utils.configuration_utils import get_neon_device_type
-    if get_neon_device_type() == 'server':
-        audio = None
-    else:
-        audio = AudioService(bus, config)  # Connect audio service instance to message bus
+    audio = AudioService(bus)  # Connect audio service instance to message bus
     create_daemon(bus.run_forever)
 
     wait_for_exit_signal()

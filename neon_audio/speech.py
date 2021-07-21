@@ -20,21 +20,21 @@
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import time
-from threading import Lock
+from threading import Lock, Thread, Event
 from typing import Optional
-from ovos_utils.log import LOG
-from ovos_utils.signal import check_for_signal
+
 from mycroft_bus_client import Message, MessageBusClient
 
-from neon_utils.configuration_utils import get_neon_local_config, NGIConfig, get_neon_audio_config
 from neon_audio.tts import TTSFactory, TTS
-
+from mycroft.configuration import Configuration
 from mycroft.tts.remote_tts import RemoteTTSTimeoutException
 from mycroft.tts.mimic_tts import Mimic
 from mycroft.metrics import report_timing, Stopwatch
+from mycroft.util.log import LOG
+from mycroft.util.signal import check_for_signal
 
 bus: Optional[MessageBusClient] = None  # Mycroft messagebus connection
-config: Optional[NGIConfig] = None
+config = None
 tts: Optional[TTS] = None
 mimic_fallback_obj: Optional[TTS] = None
 tts_hash = None
@@ -143,7 +143,8 @@ def mute_and_speak(utterance, message):
         tts_hash = hash(str(config.get('tts', '')))
 
     try:
-        tts.execute(utterance, message.context['ident'], listen, message)
+        tts.execute(utterance, message.context['ident'],
+                    listen, message)
     except RemoteTTSTimeoutException as e:
         LOG.error(e)
         mimic_fallback_tts(utterance, message.context['ident'], message)
@@ -155,9 +156,9 @@ def mimic_fallback_tts(utterance, ident, event=None):
     global mimic_fallback_obj
     # TODO: This could also be Mozilla TTS DM
     # fallback if connection is lost
-    mimic_config = get_neon_local_config()
-    tts_config = mimic_config.get('tts', {}).get("mimic", {})
-    lang = mimic_config.get("lang", "en-us")
+    config = Configuration.get()
+    tts_config = config.get('tts', {}).get("mimic", {})
+    lang = config.get("lang", "en-us")
     if not mimic_fallback_obj:
         mimic_fallback_obj = Mimic(lang, tts_config)
     mimic_tts = mimic_fallback_obj
@@ -194,7 +195,7 @@ def init(messagebus, conf=None):
     bus = messagebus
     # Configuration.set_config_update_handlers(bus)
     # config = Configuration.get()
-    config = conf or get_neon_audio_config()
+    config = conf or {}
     bus.on('mycroft.stop', handle_stop)
     bus.on('mycroft.audio.speech.stop', handle_stop)
     bus.on('speak', handle_speak)
